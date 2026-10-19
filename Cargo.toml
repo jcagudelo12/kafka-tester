@@ -2,6 +2,7 @@
 name = "kafka-tester"
 version = "0.1.0"
 edition = "2024"
+default-run = "kafka-tester"
 
 [dependencies]
 anyhow = "1.0.104"

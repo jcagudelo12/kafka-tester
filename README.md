@@ -2,6 +2,37 @@
 
 Vista web en Rust (axum + rskafka, 100% Rust, sin librdkafka) para probar la comunicación con Kafka.
 
+## Estructura
+
+```
+src/
+├── main.rs          # vista web (cargo run)
+├── lib.rs           # declara los módulos compartidos
+├── config.rs        # broker/topic por defecto y conexión
+├── producer.rs      # enviar mensajes
+├── consumer.rs      # escuchar mensajes
+├── topics.rs        # listar y crear topics
+├── web/
+│   ├── mod.rs       # estado y rutas HTTP
+│   ├── handlers.rs  # endpoints /api/*
+│   └── error.rs     # errores JSON para el navegador
+└── bin/
+    ├── producer.rs  # cargo run --bin producer  (como producer.py)
+    └── consumer.rs  # cargo run --bin consumer  (como consumer.py)
+static/index.html    # la página web
+```
+
+### Ejecutables de terminal
+
+```bash
+cargo run --bin consumer                          # escucha "pruebas", solo mensajes nuevos
+cargo run --bin consumer -- pruebas earliest      # escucha desde el inicio
+cargo run --bin producer -- "hola"                # envía "hola" a "pruebas"
+cargo run --bin producer -- "hola" otro-topic     # envía a otro topic
+```
+
+Ambos usan `KAFKA_BROKERS` igual que la vista web.
+
 ## Requisitos
 
 - Rust (`cargo`) instalado.
