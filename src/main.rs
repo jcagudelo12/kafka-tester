@@ -30,6 +30,8 @@ struct AppState {
 
 type Shared = Arc<AppState>;
 
+const DEFAULT_BROKERS: &str = "192.168.78.165:9092";
+
 /// Error que se devuelve al navegador como JSON `{ "error": "..." }`.
 struct ApiError(StatusCode, String);
 
@@ -61,8 +63,9 @@ async fn client(state: &Shared) -> Result<Arc<Client>, ApiError> {
 async fn main() -> anyhow::Result<()> {
     let state: Shared = Arc::new(AppState::default());
 
-    // Conexión automática si se define KAFKA_BROKERS (p. ej. "localhost:9092").
-    if let Ok(brokers) = std::env::var("KAFKA_BROKERS") {
+    // Conexión automática al arrancar; KAFKA_BROKERS permite usar otro broker.
+    let brokers = std::env::var("KAFKA_BROKERS").unwrap_or_else(|_| DEFAULT_BROKERS.into());
+    {
         match connect_to(&brokers).await {
             Ok(c) => {
                 println!("Conectado a Kafka en {brokers}");

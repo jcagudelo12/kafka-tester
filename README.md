@@ -6,10 +6,10 @@ Vista web en Rust (axum + rskafka, 100% Rust, sin librdkafka) para probar la com
 
 ```bash
 docker compose up -d                              # Kafka local en localhost:9092 (opcional)
-KAFKA_BROKERS=localhost:9092 cargo run            # abre http://127.0.0.1:3000
+cargo run                                         # abre http://127.0.0.1:3000 y conecta a 192.168.78.165:9092
 ```
 
-- `KAFKA_BROKERS`: brokers separados por coma (también se puede conectar desde la web).
+- `KAFKA_BROKERS`: brokers separados por coma (por defecto `192.168.78.165:9092`; también se puede cambiar desde la web). Para el Kafka local de Docker usa `KAFKA_BROKERS=localhost:9092`.
 - `BIND`: dirección del servidor web (por defecto `127.0.0.1:3000`).
 
 ## API
