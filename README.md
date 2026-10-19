@@ -114,15 +114,6 @@ curl -X POST http://127.0.0.1:3000/api/produce -H 'content-type: application/jso
 
 La primera terminal debe mostrar un `event: message` con el mensaje enviado.
 
-## Probar con un Kafka local (sin el servidor remoto)
-
-```bash
-docker compose up -d
-KAFKA_BROKERS=localhost:9092 cargo run
-```
-
-Para apagarlo: `docker compose down`.
-
 ## Problemas comunes
 
 - **`No se pudo conectar` / tiempo de espera agotado**: el broker no responde en esa IP y puerto. Revisa la VPN o la red y el firewall.
@@ -133,7 +124,7 @@ Para apagarlo: `docker compose down`.
 
 ## Configuración
 
-- `KAFKA_BROKERS`: brokers separados por coma (por defecto `192.168.78.165:9092`; también se puede cambiar desde la web). Para el Kafka local de Docker usa `KAFKA_BROKERS=localhost:9092`.
+- `KAFKA_BROKERS`: brokers separados por coma (por defecto `192.168.78.165:9092`; también se puede cambiar desde la web).
 - `BIND`: dirección del servidor web (por defecto `127.0.0.1:3000`).
 
 ## API
