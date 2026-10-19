@@ -1,0 +1,16 @@
+[package]
+name = "kafka-tester"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+axum = "0.8.9"
+chrono = "0.4.45"
+futures = "0.3.34"
+rskafka = "0.6.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+tokio = { version = "1.53.3", features = ["full"] }
+tokio-stream = "0.1.19"
+tower-http = { version = "0.7.1", features = ["cors"] }

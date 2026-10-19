@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kafka Tester</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #fff; --text: #1d2330; --muted: #6b7280;
+    --border: #dde1e7; --accent: #2563eb; --ok: #16a34a; --err: #dc2626;
+    --code: #f1f3f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11141a; --panel: #1a1f28; --text: #e5e7eb; --muted: #9ca3af;
+      --border: #2c3340; --accent: #60a5fa; --ok: #4ade80; --err: #f87171; --code: #232a35; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, Segoe UI, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+    border-bottom: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0 12px 0 0; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--err); display: inline-block; }
+  .dot.on { background: var(--ok); }
+  main { display: grid; grid-template-columns: 340px 1fr; gap: 16px; padding: 16px 20px; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; padding: 16px; } }
+  section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  section + section { margin-top: 16px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 10px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 3px; }
+  input, select, textarea { width: 100%; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg); color: var(--text); font: inherit; }
+  textarea { font-family: ui-monospace, Menlo, monospace; min-height: 90px; resize: vertical; }
+  button { padding: 7px 14px; border: 0; border-radius: 6px; background: var(--accent); color: #fff;
+    font: inherit; font-weight: 600; cursor: pointer; }
+  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; gap: 8px; align-items: end; }
+  .row > * { flex: 1; }
+  .row > button { flex: 0 0 auto; }
+  .actions { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+  #log { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; max-height: 70vh; overflow: auto; }
+  .msg { border-bottom: 1px solid var(--border); padding: 8px 2px; }
+  .msg .meta { color: var(--muted); font-size: 11.5px; }
+  .msg pre { margin: 4px 0 0; background: var(--code); padding: 6px 8px; border-radius: 4px;
+    white-space: pre-wrap; word-break: break-word; }
+  .sys { color: var(--muted); font-style: italic; padding: 6px 2px; }
+  .sys.err { color: var(--err); font-style: normal; }
+  .toolbar { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; }
+  #brokers { max-width: 260px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kafka Tester</h1>
+  <span class="dot" id="dot"></span><span id="statusText">Desconectado</span>
+  <input id="brokers" value="localhost:9092" placeholder="host:puerto[,host:puerto]">
+  <button id="connectBtn">Conectar</button>
+</header>
+
+<main>
+  <div>
+    <section>
+      <h2>Topics</h2>
+      <div class="row">
+        <select id="topic"></select>
+        <button class="secondary" id="refreshBtn" title="Recargar">↻</button>
+      </div>
+      <div class="row">
+        <div><label>Nuevo topic</label><input id="newTopic" placeholder="mi-topic"></div>
+        <div style="flex:0 0 70px"><label>Particiones</label><input id="newParts" type="number" min="1" value="1"></div>
+        <button id="createBtn">Crear</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Producir mensaje</h2>
+      <label>Partición</label>
+      <input id="partition" type="number" min="0" value="0">
+      <label>Key (opcional)</label>
+      <input id="key">
+      <label>Value</label>
+      <textarea id="value">{"hola": "kafka"}</textarea>
+      <label>Headers (JSON, opcional)</label>
+      <input id="headers" placeholder='{"origen": "web"}'>
+      <div class="actions"><button id="sendBtn">Enviar</button></div>
+    </section>
+  </div>
+
+  <section>
+    <div class="toolbar">
+      <h2 style="margin:0">Consumidor</h2>
+      <div class="actions" style="margin:0">
+        <select id="from" style="width:auto">
+          <option value="latest">Solo nuevos</option>
+          <option value="earliest">Desde el inicio</option>
+        </select>
+        <button id="consumeBtn">Escuchar</button>
+        <button class="secondary" id="clearBtn">Limpiar</button>
+      </div>
+    </div>
+    <div id="log"><div class="sys">Conéctate, elige un topic y pulsa «Escuchar». Luego envía mensajes y verás cómo llegan aquí.</div></div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let es = null;
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} : {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function sys(text, err = false) {
+  const d = document.createElement('div');
+  d.className = 'sys' + (err ? ' err' : '');
+  d.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+  $('log').prepend(d);
+}
+
+function setStatus(connected, brokers) {
+  $('dot').classList.toggle('on', connected);
+  $('statusText').textContent = connected ? `Conectado a ${brokers}` : 'Desconectado';
+  if (brokers) $('brokers').value = brokers;
+}
+
+async function refreshTopics(select) {
+  try {
+    const topics = await api('/api/topics');
+    const cur = select || $('topic').value;
+    $('topic').innerHTML = topics.length
+      ? topics.map(t => `<option value="${t.name}">${t.name} (${t.partitions.length} part.)</option>`).join('')
+      : '<option value="">(sin topics)</option>';
+    if (topics.some(t => t.name === cur)) $('topic').value = cur;
+  } catch (e) { sys('Error listando topics: ' + e.message, true); }
+}
+
+$('connectBtn').onclick = async () => {
+  $('connectBtn').disabled = true;
+  try {
+    const r = await api('/api/connect', { brokers: $('brokers').value });
+    setStatus(true, r.brokers);
+    sys('Conectado a ' + r.brokers);
+    await refreshTopics();
+  } catch (e) { setStatus(false); sys('Error al conectar: ' + e.message, true); }
+  $('connectBtn').disabled = false;
+};
+
+$('refreshBtn').onclick = () => refreshTopics();
+
+$('createBtn').onclick = async () => {
+  const name = $('newTopic').value.trim();
+  if (!name) return;
+  try {
+    await api('/api/topics', { name, partitions: +$('newParts').value || 1 });
+    sys('Topic creado: ' + name);
+    $('newTopic').value = '';
+    await refreshTopics(name);
+  } catch (e) { sys('Error creando topic: ' + e.message, true); }
+};
+
+$('sendBtn').onclick = async () => {
+  const topic = $('topic').value;
+  if (!topic) return sys('Elige un topic primero', true);
+  let headers = {};
+  try { if ($('headers').value.trim()) headers = JSON.parse($('headers').value); }
+  catch { return sys('Headers no es JSON válido', true); }
+  try {
+    const r = await api('/api/produce', {
+      topic, partition: +$('partition').value || 0,
+      key: $('key').value || null, value: $('value').value, headers
+    });
+    sys(`Enviado a ${topic} → offset ${r.offset}`);
+  } catch (e) { sys('Error enviando: ' + e.message, true); }
+};
+
+function stopConsuming() {
+  if (es) { es.close(); es = null; sys('Consumidor detenido'); }
+  $('consumeBtn').textContent = 'Escuchar';
+}
+
+$('consumeBtn').onclick = () => {
+  if (es) return stopConsuming();
+  const topic = $('topic').value;
+  if (!topic) return sys('Elige un topic primero', true);
+  const qs = new URLSearchParams({ topic, partition: $('partition').value || 0, from: $('from').value });
+  es = new EventSource('/api/consume?' + qs);
+  $('consumeBtn').textContent = 'Detener';
+  sys(`Escuchando ${topic} (partición ${qs.get('partition')}, ${$('from').selectedOptions[0].text.toLowerCase()})`);
+  es.addEventListener('message', ev => {
+    const m = JSON.parse(ev.data);
+    let value = m.value ?? '';
+    try { value = JSON.stringify(JSON.parse(value), null, 2); } catch {}
+    const d = document.createElement('div');
+    d.className = 'msg';
+    const hdrs = Object.keys(m.headers).length ? ` · headers ${JSON.stringify(m.headers)}` : '';
+    d.innerHTML = `<div class="meta"></div><pre></pre>`;
+    d.querySelector('.meta').textContent =
+      `offset ${m.offset} · key ${m.key ?? '∅'} · ${new Date(m.timestamp).toLocaleTimeString()}${hdrs}`;
+    d.querySelector('pre').textContent = value;
+    $('log').prepend(d);
+  });
+  es.addEventListener('kafka-error', ev => sys('Kafka: ' + ev.data, true));
+  es.onerror = () => { if (es && es.readyState === EventSource.CLOSED) { sys('Conexión SSE cerrada', true); stopConsuming(); } };
+};
+
+$('clearBtn').onclick = () => { $('log').innerHTML = ''; };
+
+api('/api/status').then(s => { setStatus(s.connected, s.brokers); if (s.connected) refreshTopics(); });
+</script>
+</body>
+</html>
