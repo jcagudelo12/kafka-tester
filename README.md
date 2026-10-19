@@ -19,7 +19,10 @@ src/
 └── bin/
     ├── producer.rs  # cargo run --bin producer  (como producer.py)
     └── consumer.rs  # cargo run --bin consumer  (como consumer.py)
-static/index.html    # la página web
+static/
+├── index.html       # estructura de la página
+├── style.css        # estilos
+└── app.js           # lógica: llamadas a /api/* y consumidor en vivo
 ```
 
 ### Ejecutables de terminal

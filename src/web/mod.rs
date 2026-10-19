@@ -7,7 +7,8 @@ use std::sync::Arc;
 
 use axum::{
     Router,
-    response::Html,
+    http::header,
+    response::{Html, IntoResponse},
     routing::{get, post},
 };
 use rskafka::client::Client;
@@ -41,10 +42,17 @@ impl AppState {
 pub fn router(state: Shared) -> Router {
     Router::new()
         .route("/", get(|| async { Html(include_str!("../../static/index.html")) }))
+        .route("/style.css", get(|| async { static_file("text/css", include_str!("../../static/style.css")) }))
+        .route("/app.js", get(|| async { static_file("text/javascript", include_str!("../../static/app.js")) }))
         .route("/api/status", get(handlers::status))
         .route("/api/connect", post(handlers::connect))
         .route("/api/topics", get(handlers::list_topics).post(handlers::create_topic))
         .route("/api/produce", post(handlers::produce))
         .route("/api/consume", get(handlers::consume))
         .with_state(state)
+}
+
+/// Archivo de `static/` incluido en el binario, con su tipo de contenido.
+fn static_file(content_type: &'static str, body: &'static str) -> impl IntoResponse {
+    ([(header::CONTENT_TYPE, content_type)], body)
 }
